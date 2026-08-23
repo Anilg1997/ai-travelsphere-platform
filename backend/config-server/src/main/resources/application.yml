@@ -1,0 +1,33 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-server
+  profiles:
+    active: native,git
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: classpath:/config-repo,file:./config-repo
+        git:
+          uri: ${SPRING_CLOUD_CONFIG_SERVER_GIT_URI:https://github.com/Anilg1997/ai-travelsphere-platform.git}
+          default-label: main
+          search-paths: config-repo
+          clone-on-start: true
+          force-pull: true
+          skipSslValidation: true
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    serviceUrl:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,refresh,busrefresh

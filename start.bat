@@ -7,6 +7,7 @@ REM   start.bat              → Start infrastructure + all backend services
 REM   start.bat infra        → Start only infrastructure
 REM   start.bat frontend     → Start only the Angular frontend
 REM   start.bat backend      → Start only backend microservices
+REM   start.bat local <svc>  → Run a single service locally (e.g. start.bat local auth-service)
 REM   start.bat stop         → Stop all services
 REM   start.bat status       → Show running container status
 REM =============================================================================
@@ -49,7 +50,7 @@ if "%1"=="frontend" (
         echo Installing dependencies...
         call npm install
     )
-    call ng serve
+    call npm run start
     cd ..\..
     goto :end
 )
@@ -66,6 +67,36 @@ if "%1"=="test" (
     cd backend\food-delivery-service && call mvnw.cmd test -q 2>nul || call mvn test -q 2>nul
     cd ..\..
     echo Tests completed.
+    goto :end
+)
+
+if "%1"=="local" (
+    if "%2"=="" (
+        echo Usage: start.bat local ^<service-name^>
+        echo.
+        echo Available services:
+        echo   service-registry, config-server, api-gateway
+        echo   auth-service, user-service, flight-service, hotel-service
+        echo   transport-service, car-rental-service, insurance-service, package-service
+        echo   payment-service, notification-service, document-service, search-service
+        echo   ai-agent-service, admin-service, food-delivery-service
+        goto :end
+    )
+    echo Building and running %2 locally...
+    cd backend\%2
+    if not exist "target" (
+        echo Building with Maven...
+        call mvnw.cmd clean package -DskipTests -q 2>nul || call mvn clean package -DskipTests -q
+    )
+    for /f "delims=" %%i in ('dir /b target\*.jar 2^>nul') do set JAR=target\%%i
+    if "%JAR%"=="" (
+        echo [ERROR] Build failed - no JAR found
+        cd ..\..\r
+        goto :end
+    )
+    echo Starting %2 from %JAR%...
+    java -jar "%JAR%"
+    cd ..\..\r
     goto :end
 )
 
@@ -117,6 +148,10 @@ echo   To start frontend:
 echo     cd frontend\travelsphere-ui
 echo     npm install
 echo     ng serve
+echo.
+echo   To run a service locally (no Docker for backend):
+echo     start.bat local auth-service
+echo     start.bat local api-gateway
 echo.
 echo   Check status: docker compose ps
 echo   Stop:         docker compose down

@@ -1,17 +1,4 @@
 spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/travelsphere?currentSchema=auth_schema
-    username: travelsphere
-    password: TravelSphere@2024
-  data:
-    redis:
-      host: localhost
-      password: Redis@2024
-  kafka:
-    producer:
-      bootstrap-servers: localhost:9092
-    consumer:
-      bootstrap-servers: localhost:9092
   jpa:
     show-sql: true
 

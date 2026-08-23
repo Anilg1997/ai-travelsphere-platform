@@ -17,26 +17,63 @@ A full-stack enterprise microservices platform for booking flights, hotels, cars
 
 ### Prerequisites
 
-- **Docker Desktop** (with Docker Compose v2) — [Install](https://docs.docker.com/get-docker/)
-- **Node.js 18+** and **npm** — [Install](https://nodejs.org/) (for frontend only)
-- **Java 17** and **Maven 3.9+** (optional — only if running services outside Docker)
+- **Java 17** and **Maven 3.9+** — [Install](https://adoptium.net/) (for running services locally)
+- **Node.js 18+** and **npm** — [Install](https://nodejs.org/) (for frontend)
+- **Docker Desktop** (with Docker Compose v2) — [Install](https://docs.docker.com/get-docker/) (optional — for infrastructure)
 
-### One-Command Setup
+### Option A: Run Locally (Recommended for Development)
+
+Run each service directly from your IDE or terminal — no Docker needed for backend services.
 
 ```bash
 # Clone the repository
 git clone https://github.com/Anilg1997/TravelSphere-Nexus-AI-Powered-Travel-Booking-Insurance-Platform.git
 cd TravelSphere-Nexus-AI-Powered-Travel-Booking-Insurance-Platform
 
-# Make start script executable (Linux/macOS/Git Bash)
-chmod +x start.sh
+# 1. Start infrastructure (PostgreSQL, Redis, Kafka) via Docker
+docker compose up -d postgres redis zookeeper kafka qdrant localstack mailhog
 
-# Start everything (infrastructure + backend services)
-./start.sh
+# 2. Run a single service (builds + starts it)
+./start.sh local auth-service
+# OR run from IDE: Run ServiceRegistryApplication.java, then auth-service, etc.
+
+# 3. Start the Angular frontend
+cd frontend/travelsphere-ui && npm install && ng serve
 ```
 
-On **Windows** (Command Prompt):
-```cmd
+**Start order for local development:**
+1. `service-registry` (port 8761) — Eureka must start first
+2. `config-server` (port 8888) — Config server needs Eureka
+3. `api-gateway` (port 8080) — Gateway needs Eureka + Config
+4. Any business service (auth, user, flight, etc.) — needs Eureka + DB + Kafka
+
+Each service is **self-contained** — it has its own `application.yml` with all config and works without the Config Server.
+
+**Run a single service:**
+```bash
+# Linux/macOS
+./start.sh local auth-service
+
+# Windows
+start.bat local auth-service
+
+# Or directly with Maven
+cd backend/auth-service
+mvn spring-boot:run
+```
+
+**Run all services locally:**
+```bash
+./start.sh local-all
+```
+
+### Option B: Run Everything via Docker
+
+```bash
+# Start everything (infrastructure + all backend services via Docker)
+./start.sh
+
+# On Windows:
 start.bat
 ```
 
@@ -62,10 +99,12 @@ Open **http://localhost:4200** in your browser.
 
 | Command | Description |
 |---------|-------------|
-| `./start.sh` | Start infrastructure + all backend services |
+| `./start.sh` | Start infrastructure + all backend services (Docker) |
 | `./start.sh infra` | Start only infrastructure (DB, Redis, Kafka, etc.) |
 | `./start.sh frontend` | Start Angular dev server |
-| `./start.sh backend` | Start all backend microservices |
+| `./start.sh backend` | Start all backend microservices (Docker) |
+| `./start.sh local <svc>` | Run a single service locally (e.g. `./start.sh local auth-service`) |
+| `./start.sh local-all` | Run ALL services locally (requires Java 17 + Maven) |
 | `./start.sh test` | Run backend unit tests |
 | `./start.sh stop` | Stop all services |
 | `./start.sh status` | Show running container status |
@@ -318,7 +357,7 @@ To enable the mini-map and nearby discovery:
 
 ### Config Server
 
-Services fetch their configuration from the Config Server, which reads from `config-repo/` locally. Each service has its own YAML file in that directory.
+Each service is **self-contained** with its own `application.yml` — no Config Server required for local development. The Config Server is optional and can override config when running in a cloud/Docker environment. Config files in `config-repo/` are used by the Config Server for centralized configuration management.
 
 ---
 

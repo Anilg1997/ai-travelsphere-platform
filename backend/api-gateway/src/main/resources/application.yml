@@ -1,0 +1,104 @@
+spring:
+  application:
+    name: api-gateway
+  config:
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: "http://localhost:4200"
+            allowed-methods: "*"
+            allowed-headers: "*"
+            allow-credentials: true
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/auth/**
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**
+        - id: flight-service
+          uri: lb://flight-service
+          predicates:
+            - Path=/api/v1/flights/**
+        - id: hotel-service
+          uri: lb://hotel-service
+          predicates:
+            - Path=/api/v1/hotels/**
+        - id: transport-service
+          uri: lb://transport-service
+          predicates:
+            - Path=/api/v1/transport/**
+        - id: car-rental-service
+          uri: lb://car-rental-service
+          predicates:
+            - Path=/api/v1/cars/**
+        - id: insurance-service
+          uri: lb://insurance-service
+          predicates:
+            - Path=/api/v1/insurance/**
+        - id: package-service
+          uri: lb://package-service
+          predicates:
+            - Path=/api/v1/packages/**
+        - id: payment-service
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/v1/payments/**
+            - Path=/api/v1/wallet/**
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notifications/**
+        - id: document-service
+          uri: lb://document-service
+          predicates:
+            - Path=/api/v1/documents/**
+        - id: search-service
+          uri: lb://search-service
+          predicates:
+            - Path=/api/v1/search/**
+        - id: ai-agent-service
+          uri: lb://ai-agent-service
+          predicates:
+            - Path=/api/v1/ai/**
+        - id: food-delivery-service
+          uri: lb://food-delivery-service
+          predicates:
+            - Path=/api/v1/food/**
+        - id: admin-service
+          uri: lb://admin-service
+          predicates:
+            - Path=/api/v1/admin/**
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      password: ${REDIS_PASSWORD:Redis@2024}
+      timeout: 2000ms
+  kafka:
+    producer:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+server:
+  port: 8080
+
+app:
+  redis:
+    prefix:
+      rate-limit: "rate:"
+    rate-limit:
+      max-requests: 100
+      window-seconds: 60
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway

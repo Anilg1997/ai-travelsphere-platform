@@ -3,10 +3,12 @@
 # TravelSphere Platform — One-Command Startup Script
 # =============================================================================
 # Usage:
-#   ./start.sh              → Start infrastructure + all backend services
+#   ./start.sh              → Start infrastructure + all backend services (Docker)
 #   ./start.sh infra        → Start only infrastructure (DB, Redis, Kafka, etc.)
 #   ./start.sh frontend     → Start only the Angular frontend
-#   ./start.sh backend      → Start only backend microservices
+#   ./start.sh backend      → Start only backend microservices (Docker)
+#   ./start.sh local <svc>  → Run a single service locally (e.g. ./start.sh local auth-service)
+#   ./start.sh local-all    → Run ALL services locally (requires Maven + Java 17)
 #   ./start.sh test         → Run all backend tests
 #   ./start.sh stop         → Stop all services
 #   ./start.sh status       → Show running container status
@@ -137,6 +139,110 @@ start_backend() {
     echo ""
 }
 
+# ── Run a single service locally ───────────────────────────────────────────
+
+start_local_service() {
+    local SERVICE=$1
+    if [ -z "$SERVICE" ]; then
+        print_error "Usage: ./start.sh local <service-name>"
+        echo ""
+        echo "Available services:"
+        echo "  service-registry, config-server, api-gateway"
+        echo "  auth-service, user-service, flight-service, hotel-service"
+        echo "  transport-service, car-rental-service, insurance-service, package-service"
+        echo "  payment-service, notification-service, document-service, search-service"
+        echo "  ai-agent-service, admin-service, food-delivery-service, webhook-service"
+        exit 1
+    fi
+
+    local SVC_DIR="backend/$SERVICE"
+    if [ ! -d "$SVC_DIR" ]; then
+        print_error "Service '$SERVICE' not found in backend/"
+        exit 1
+    fi
+
+    print_step "Building and running $SERVICE locally..."
+    echo ""
+
+    # Build the service
+    cd "$SVC_DIR"
+    if [ ! -f "target/*.jar" ] || [ ! -d "target" ]; then
+        print_step "Building $SERVICE with Maven..."
+        if [ -f "./mvnw" ]; then
+            ./mvnw clean package -DskipTests -q
+        else
+            mvn clean package -DskipTests -q
+        fi
+    fi
+
+    # Run the service
+    JAR=$(ls target/*.jar 2>/dev/null | head -1)
+    if [ -z "$JAR" ]; then
+        print_error "Build failed - no JAR found in target/"
+        cd "$SCRIPT_DIR"
+        exit 1
+    fi
+
+    print_success "Starting $SERVICE from $JAR"
+    print_warning "Press Ctrl+C to stop"
+    echo ""
+    java -jar "$JAR"
+    cd "$SCRIPT_DIR"
+}
+
+# ── Run all services locally ────────────────────────────────────────────────
+
+start_local_all() {
+    print_step "Building entire project..."
+    mvn clean package -DskipTests -q -T 4
+    if [ $? -ne 0 ]; then
+        print_error "Build failed"
+        exit 1
+    fi
+    print_success "Build complete"
+    echo ""
+
+    # Start order: infra services first, then business services
+    CORE_SERVICES="service-registry config-server api-gateway"
+    BUSINESS_SERVICES="auth-service user-service flight-service hotel-service \
+        transport-service car-rental-service insurance-service package-service \
+        payment-service notification-service document-service search-service \
+        ai-agent-service admin-service food-delivery-service"
+
+    PIDS=()
+
+    for SVC in $CORE_SERVICES; do
+        JAR=$(ls backend/$SVC/target/*.jar 2>/dev/null | head -1)
+        if [ -n "$JAR" ]; then
+            print_step "Starting $SVC..."
+            java -jar "$JAR" &
+            PIDS+=($!)
+            sleep 3
+        fi
+    done
+
+    for SVC in $BUSINESS_SERVICES; do
+        JAR=$(ls backend/$SVC/target/*.jar 2>/dev/null | head -1)
+        if [ -n "$JAR" ]; then
+            print_step "Starting $SVC..."
+            java -jar "$JAR" &
+            PIDS+=($!)
+        fi
+    done
+
+    echo ""
+    print_success "All services started!"
+    echo -e "  ${CYAN}Eureka:${NC}       http://localhost:8761"
+    echo -e "  ${CYAN}API Gateway:${NC}   http://localhost:8080"
+    echo -e "  ${CYAN}Swagger:${NC}       http://localhost:8080/swagger-ui.html"
+    echo ""
+    echo -e "  ${YELLOW}Press Ctrl+C to stop all services${NC}"
+
+    # Wait for all background processes
+    trap "kill ${PIDS[*]} 2>/dev/null; exit" INT TERM
+    wait
+}
+
 # ── Start frontend ──────────────────────────────────────────────────────────
 
 start_frontend() {
@@ -241,6 +347,12 @@ case "${1:-all}" in
         start_backend
         print_urls
         ;;
+    local)
+        start_local_service "$2"
+        ;;
+    local-all)
+        start_local_all
+        ;;
     test)
         run_tests
         ;;
@@ -264,16 +376,18 @@ case "${1:-all}" in
         echo ""
         ;;
     *)
-        echo "Usage: ./start.sh [infra|frontend|backend|test|stop|status|logs|all]"
+        echo "Usage: ./start.sh [infra|frontend|backend|local <svc>|local-all|test|stop|status|logs|all]"
         echo ""
-        echo "  all        → Start infrastructure + backend (default)"
-        echo "  infra      → Start only infrastructure services"
-        echo "  frontend   → Start Angular dev server"
-        echo "  backend    → Start all backend microservices"
-        echo "  test       → Run backend unit tests"
-        echo "  stop       → Stop all services"
-        echo "  status     → Show running container status"
-        echo "  logs       → Tail logs from all services"
+        echo "  all          → Start infrastructure + backend via Docker (default)"
+        echo "  infra        → Start only infrastructure services via Docker"
+        echo "  frontend     → Start Angular dev server"
+        echo "  backend      → Start all backend microservices via Docker"
+        echo "  local <svc>  → Run a single service locally (e.g. ./start.sh local auth-service)"
+        echo "  local-all    → Run ALL services locally (requires Java 17 + Maven)"
+        echo "  test         → Run backend unit tests"
+        echo "  stop         → Stop all services"
+        echo "  status       → Show running container status"
+        echo "  logs         → Tail logs from all services"
         exit 1
         ;;
 esac
