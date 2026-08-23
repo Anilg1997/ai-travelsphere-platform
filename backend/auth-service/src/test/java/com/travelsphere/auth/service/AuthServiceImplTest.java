@@ -235,7 +235,7 @@ class AuthServiceImplTest {
     void changeEmailSuccess() {
         User user = User.builder()
                 .id(TEST_USER_ID).email(TEST_EMAIL).passwordHash("encoded")
-                .fullName(TEST_NAME).isActive(true).emailVerified(true)
+                .fullName(TEST_NAME).isActive(true).isEmailVerified(true)
                 .loyaltyTier(LoyaltyTier.SILVER).roles(Set.of(Role.ROLE_USER)).build();
 
         when(userRepository.findById(TEST_USER_ID)).thenReturn(Optional.of(user));

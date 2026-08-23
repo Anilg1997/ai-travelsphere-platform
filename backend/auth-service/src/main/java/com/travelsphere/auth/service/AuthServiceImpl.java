@@ -196,7 +196,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         // Soft-delete: deactivate instead of hard delete
-        user.setIsActive(false);
+        user.setActive(false);
         userRepository.save(user);
 
         // Invalidate all refresh tokens
